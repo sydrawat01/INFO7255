@@ -2,12 +2,12 @@
   "name": "api",
   "version": "1.0.0",
   "description": "RESTful API",
-  "main": "app.js",
+  "main": "server.js",
   "author": "Siddharth Rawat <rawat.sid@northeastern.edu>",
   "license": "MIT",
   "scripts": {
     "env": "nodemon -r dotenv/config",
-    "start:dev": "nodemon --exec babel-node app.js",
+    "start:dev": "nodemon --exec babel-node server.js",
     "clean": "rm  -rf ./dist"
   },
   "dependencies": {

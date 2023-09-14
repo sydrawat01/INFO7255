@@ -1,4 +1,4 @@
-import logger from '../configs/logger.config'
+import logger from '../../configs/logger.config'
 // import appConfig from '../configs/app.config'
 
 const health = (req, res) => {
