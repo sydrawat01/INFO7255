@@ -205,7 +205,8 @@
     "_org",
     "objectId",
     "objectType",
-    "planType"
+    "planType",
+    "creationDate"
   ],
   "additionalProperties": true
 }

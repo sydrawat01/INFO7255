@@ -1,10 +1,13 @@
-import { findPlan, addPlan, delPlan } from '../services/redis.client'
+import { findPlan, addPlan, deleteByPlanId } from '../services/redis.client'
 import { validate, md5hash } from '../utils/schemaValidation'
 import {
   BadRequestError,
+  InternalServerError,
   ResourceNotFoundError,
+  PreConditionFailedError,
   conflictHandler,
   createHandler,
+  noContentHandler,
   notModifiedHandler,
   successHandler,
 } from '../utils/error.util'
@@ -18,16 +21,17 @@ const getPlan = async (req, res, next) => {
     `Requesting ${method} ${protocol}://${hostname}${originalUrl}`,
     metaData
   )
-  const planId = params.planId
   try {
+    const { planId } = params
     if (planId === null || planId === '' || planId === '{}') {
       throw new BadRequestError(`Invalid planId`)
     }
     const value = await findPlan(planId)
     if (value.objectId === planId) {
+      // conditional read based on `if-none-match` header
       if (
         req.headers['if-none-match'] &&
-        value.ETag == req.headers['if-none-match']
+        value.ETag === req.headers['if-none-match']
       ) {
         res.setHeader('ETag', value.ETag)
         const data = {
@@ -35,7 +39,6 @@ const getPlan = async (req, res, next) => {
           plan: JSON.parse(value.plan),
         }
         notModifiedHandler(res, data)
-        return
       } else {
         res.setHeader('ETag', value.ETag)
         const data = {
@@ -43,7 +46,6 @@ const getPlan = async (req, res, next) => {
           plan: JSON.parse(value.plan),
         }
         successHandler(res, data)
-        return
       }
     } else {
       throw new ResourceNotFoundError(`Plan not found`)
@@ -64,20 +66,20 @@ const savePlan = async (req, res, next) => {
   try {
     if (validate(req.body)) {
       const value = await findPlan(req.body.objectId)
+      logger.warn(`VALUE: ${value}`)
       if (value) {
         res.setHeader('ETag', value.ETag)
         const data = { message: 'Item already exists' }
         conflictHandler(res, data)
-        return
       } else {
-        const ETag = (await addPlan(req.body)).ETag
+        const newPlan = await addPlan(req.body)
+        const { ETag } = newPlan
         res.setHeader('ETag', ETag)
         const data = {
           message: 'Item added',
           ETag,
         }
         createHandler(res, data)
-        return
       }
     } else {
       throw new BadRequestError(`Item is not valid`)
@@ -87,6 +89,44 @@ const savePlan = async (req, res, next) => {
   }
 }
 
-const deletePlan = async (req, res, next) => {}
+const deletePlan = async (req, res, next) => {
+  const { protocol, method, hostname, originalUrl, params } = req
+  const headers = { ...req.headers }
+  const metaData = { protocol, method, hostname, originalUrl, headers, params }
+  logger.info(
+    `Requesting ${method} ${protocol}://${hostname}${originalUrl}`,
+    metaData
+  )
+  try {
+    const { planId } = params
+    if (planId === null || planId === '' || planId === '{}') {
+      throw new BadRequestError(`Invalid planId`)
+    }
+    const value = await findPlan(planId)
+    if (value.objectId === planId) {
+      // conditional delete based on `if-match` header
+      if (req.headers['if-match'] && value.ETag === req.headers['if-match']) {
+        const data = {
+          plan: JSON.parse(value.plan),
+        }
+        logger.info(`Item found`, JSON.parse(value.plan))
+        if (deleteByPlanId(planId)) {
+          logger.info(`Item deleted`, JSON.parse(value.plan))
+          noContentHandler(res, data)
+        } else {
+          throw new InternalServerError(`Item not deleted`)
+        }
+      } else {
+        throw new PreConditionFailedError(
+          `ETag provided in header is not valid`
+        )
+      }
+    } else {
+      throw new ResourceNotFoundError(`Plan not found`)
+    }
+  } catch (err) {
+    next(err)
+  }
+}
 
 export { getPlan, savePlan, deletePlan }

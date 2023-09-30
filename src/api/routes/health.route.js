@@ -6,4 +6,4 @@ const router = express.Router()
 router.get('/', health)
 router.get('/health', health)
 
-export {router as healthRoute }
+export { router as healthRoute }
