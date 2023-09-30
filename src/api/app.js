@@ -1,7 +1,5 @@
 import express from 'express'
 import { errorHandler } from './middlewares/errorHandler'
-// import { healthRoute } from './routes/health.route'
-// import { planRoute } from './routes/plan.route'
 import { healthRoute, planRoute } from './routes/index.routes'
 
 const app = express()

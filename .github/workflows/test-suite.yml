@@ -1,0 +1,35 @@
+# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+
+name: Unit Test Suite
+
+# Controls when the action will run.
+on:
+  workflow_dispatch:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: ${{ vars.ENVIRONMENT }}
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    name: Run unit tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Create .env file"
+        run: |
+          touch .env
+          echo HOSTNAME=${{ vars.HOSTNAME }} >> .env
+          echo PORT=${{ vars.PORT }} >> .env
+          echo DATABASE=${{ vars.REDIS_PORT }} >> .env
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: yarn
+      - run: yarn test

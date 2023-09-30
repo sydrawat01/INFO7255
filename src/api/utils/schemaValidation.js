@@ -9,9 +9,8 @@ const jsonSchema = JSON.parse(schemaData)
 const validate = (reqBody) => {
   if (validator.validate(reqBody, jsonSchema).errors.length < 1) {
     return true
-  } else {
-    return false
   }
+  return false
 }
 
 const md5hash = (body) => {

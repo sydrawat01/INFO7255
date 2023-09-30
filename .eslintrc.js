@@ -21,4 +21,4 @@ module.exports = {
     'default-param-last': 'off',
     camelcase: 'off',
   },
-};
+}

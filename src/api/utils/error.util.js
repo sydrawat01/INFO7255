@@ -67,6 +67,17 @@ class ResourceNotFoundError extends HTTPError {
   }
 }
 
+class PreConditionFailedError extends HTTPError {
+  constructor(message = 'Precondition Failed', data) {
+    super({
+      message,
+      name: 'PreConditionFailed',
+      statusCode: responseCodes.PRECONDITION_FAILED,
+      data,
+    })
+  }
+}
+
 // Predefined 5xx error handler utils
 class InternalServerError extends HTTPError {
   constructor(message = 'Internal Server Error', data) {
@@ -162,10 +173,18 @@ const conflictHandler = (res, data, statusCode = responseCodes.CONFLICT) => {
   res.status(statusCode).json(data)
 }
 
+// Create handler
 const createHandler = (res, data, statusCode = responseCodes.CREATED) => {
   logger.info(`${statusCode} CREATED`, data)
   res.status(statusCode).json(data)
 }
+
+// No content handler
+const noContentHandler = (res, data, statusCode = responseCodes.NO_CONTENT) => {
+  logger.info(`${statusCode} NO_CONTENT`, data)
+  res.status(statusCode).json(data)
+}
+
 // Success handler
 const successHandler = (res, data, statusCode = responseCodes.OK) => {
   logger.info(`${statusCode} OK`, data)
@@ -180,6 +199,7 @@ export {
   ForbiddenError,
   ResourceNotFoundError,
   InternalServerError,
+  PreConditionFailedError,
   BadGatewayError,
   ServiceUnavailableError,
   GatewayTimeoutError,
@@ -190,4 +210,5 @@ export {
   notModifiedHandler,
   conflictHandler,
   createHandler,
+  noContentHandler,
 }

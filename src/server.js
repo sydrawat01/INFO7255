@@ -8,4 +8,3 @@ const { HOSTNAME, PORT } = appConfig
 app.listen(PORT, () => {
   logger.info(`Server running @ http://${HOSTNAME}:${PORT}`)
 })
-
