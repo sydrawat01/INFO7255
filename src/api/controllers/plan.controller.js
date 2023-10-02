@@ -66,7 +66,6 @@ const savePlan = async (req, res, next) => {
   try {
     if (validate(req.body)) {
       const value = await findPlan(req.body.objectId)
-      logger.warn(`VALUE: ${value}`)
       if (value) {
         res.setHeader('ETag', value.ETag)
         const data = { message: 'Item already exists' }

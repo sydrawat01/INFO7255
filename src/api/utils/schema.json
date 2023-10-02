@@ -1,18 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "INFO-7255 JSON Schema",
+  "description": "JSON Schema for medical use case",
   "type": "object",
   "properties": {
     "planCostShares": {
       "type": "object",
       "properties": {
         "deductible": {
-          "type": "integer"
+          "type": "number"
         },
         "_org": {
           "type": "string"
         },
         "copay": {
-          "type": "integer"
+          "type": "number"
         },
         "objectId": {
           "type": "string"
@@ -32,6 +34,7 @@
     },
     "linkedPlanServices": {
       "type": "array",
+      "minItems": 1,
       "items": [
         {
           "type": "object",
@@ -64,87 +67,13 @@
               "type": "object",
               "properties": {
                 "deductible": {
-                  "type": "integer"
+                  "type": "number"
                 },
                 "_org": {
                   "type": "string"
                 },
                 "copay": {
-                  "type": "integer"
-                },
-                "objectId": {
-                  "type": "string"
-                },
-                "objectType": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "deductible",
-                "_org",
-                "copay",
-                "objectId",
-                "objectType"
-              ],
-              "additionalProperties": false
-            },
-            "_org": {
-              "type": "string"
-            },
-            "objectId": {
-              "type": "string"
-            },
-            "objectType": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "linkedService",
-            "planserviceCostShares",
-            "_org",
-            "objectId",
-            "objectType"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "linkedService": {
-              "type": "object",
-              "properties": {
-                "_org": {
-                  "type": "string"
-                },
-                "objectId": {
-                  "type": "string"
-                },
-                "objectType": {
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "_org",
-                "objectId",
-                "objectType",
-                "name"
-              ],
-              "additionalProperties": false
-            },
-            "planserviceCostShares": {
-              "type": "object",
-              "properties": {
-                "deductible": {
-                  "type": "integer"
-                },
-                "_org": {
-                  "type": "string"
-                },
-                "copay": {
-                  "type": "integer"
+                  "type": "number"
                 },
                 "objectId": {
                   "type": "string"
@@ -208,5 +137,5 @@
     "planType",
     "creationDate"
   ],
-  "additionalProperties": true
+  "additionalProperties": false
 }
