@@ -1,6 +1,6 @@
 {
   "name": "api",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "description": "RESTful API",
   "main": "src/server.js",
   "author": "Siddharth Rawat <rawat.sid@northeastern.edu>",
