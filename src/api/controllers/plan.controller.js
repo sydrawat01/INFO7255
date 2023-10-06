@@ -102,23 +102,31 @@ const deletePlan = async (req, res, next) => {
       throw new BadRequestError(`Invalid planId`)
     }
     const value = await findPlan(planId)
-    if (value.objectId === planId) {
+    if (value !== false && value.objectId === planId) {
       // conditional delete based on `if-match` header
-      if (req.headers['if-match'] && value.ETag === req.headers['if-match']) {
-        const data = {
-          plan: JSON.parse(value.plan),
-        }
-        logger.info(`Item found`, JSON.parse(value.plan))
-        if (deleteByPlanId(planId)) {
-          logger.info(`Item deleted`, JSON.parse(value.plan))
-          noContentHandler(res, data)
+      const data = {
+        plan: JSON.parse(value.plan),
+      }
+      if (req.headers['if-match']) {
+        // if ETag matches on conditional delete
+        if (value.ETag === req.headers['if-match']) {
+          logger.info(`Item found`, JSON.parse(value.plan))
+          if (deleteByPlanId(planId)) {
+            logger.info(`Item deleted`, JSON.parse(value.plan))
+            noContentHandler(res, data)
+          } else {
+            throw new InternalServerError(`Item not deleted`)
+          }
         } else {
-          throw new InternalServerError(`Item not deleted`)
+          throw new PreConditionFailedError(
+            `ETag provided in header is not valid`
+          )
         }
+      } else if (deleteByPlanId(planId)) {
+        logger.info(`Item deleted`, JSON.parse(value.plan))
+        noContentHandler(res, data)
       } else {
-        throw new PreConditionFailedError(
-          `ETag provided in header is not valid`
-        )
+        throw new InternalServerError(`Item not deleted`)
       }
     } else {
       throw new ResourceNotFoundError(`Plan not found`)
