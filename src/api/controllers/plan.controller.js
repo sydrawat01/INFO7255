@@ -136,4 +136,19 @@ const deletePlan = async (req, res, next) => {
   }
 }
 
-export { getPlan, savePlan, deletePlan }
+const editPlan = async (req, res, next) => {
+  const { protocol, method, hostname, originalUrl, params } = req
+  const headers = { ...req.headers }
+  const metaData = { protocol, method, hostname, originalUrl, headers, params }
+  logger.info(
+    `Requesting ${method} ${protocol}://${hostname}${originalUrl}`,
+    metaData
+  )
+  try {
+    // TODO: implement PATCH logic
+  } catch (err) {
+    next(err)
+  }
+}
+
+export { getPlan, savePlan, deletePlan, editPlan }
