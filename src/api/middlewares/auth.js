@@ -5,7 +5,7 @@ import logger from '../../configs/logger.config'
 const { CLIENT_ID } = appConfig
 export const gClient = new OAuth2Client(CLIENT_ID)
 
-export const validate = async (req, res, next) => {
+export const auth = async (req, res, next) => {
   try {
     if (req.headers.authorization === null) {
       return res.status(401).send('Unauthorized')
