@@ -19,7 +19,10 @@ module.exports = {
     'consistent-return': 'off',
     'max-classes-per-file': 'off',
     'default-param-last': 'off',
-    // camelcase: 'off',
     'dot-notation': 'off',
+    'no-restricted-syntax': 'off',
+    'guard-for-in': 'off',
+    'no-await-in-loop': 'off',
+    'no-param-reassign': 'off',
   },
 }

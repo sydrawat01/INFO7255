@@ -1,15 +1,25 @@
-import { findPlan, addPlan, deleteByPlanId } from '../services/redis.client'
-import { validate, md5hash } from '../utils/schemaValidation'
+import {
+  createETag,
+  checkIfPlanExists,
+  getPlanETag,
+  getPlanService,
+  savePlanService,
+  deletePlanService,
+  patchObject,
+  patchList,
+} from '../services/redis.client'
+import { validateSchema } from '../utils/schemaValidation'
 import {
   BadRequestError,
   InternalServerError,
   ResourceNotFoundError,
-  PreConditionFailedError,
   conflictHandler,
   createHandler,
   noContentHandler,
   notModifiedHandler,
   successHandler,
+  preconditionCheckHandler,
+  preconditionRequiredHandler,
 } from '../utils/error.util'
 import logger from '../../configs/logger.config'
 
@@ -26,30 +36,30 @@ const getPlan = async (req, res, next) => {
     if (planId === null || planId === '' || planId === '{}') {
       throw new BadRequestError(`Invalid planId`)
     }
-    const value = await findPlan(planId)
-    if (value.objectId === planId) {
-      // conditional read based on `if-none-match` header
-      if (
-        req.headers['if-none-match'] &&
-        value.ETag === req.headers['if-none-match']
-      ) {
-        res.setHeader('ETag', value.ETag)
-        const data = {
-          message: 'Plan has not changed',
-          plan: JSON.parse(value.plan),
-        }
-        notModifiedHandler(res, data)
-      } else {
-        res.setHeader('ETag', value.ETag)
-        const data = {
-          message: 'Plan has changed',
-          plan: JSON.parse(value.plan),
-        }
-        successHandler(res, data)
-      }
-    } else {
+    const doesPlanExist = await checkIfPlanExists(planId)
+    if (!doesPlanExist) {
       throw new ResourceNotFoundError(`Plan not found`)
     }
+    const [plan, etag] = await getPlanService(planId)
+    if (!plan) {
+      throw new ResourceNotFoundError(`Plan not found`)
+    }
+    if (
+      req.headers['if-none-match'] !== undefined &&
+      req.headers['if-none-match'] === etag
+    ) {
+      const data = {
+        message: 'Plan has not changed',
+        plan: JSON.parse(plan),
+      }
+      notModifiedHandler(res, data, etag)
+      return
+    }
+    const data = {
+      message: 'Plan has changed',
+      plan: JSON.parse(plan),
+    }
+    successHandler(res, data, etag)
   } catch (err) {
     next(err)
   }
@@ -64,24 +74,31 @@ const savePlan = async (req, res, next) => {
     metaData
   )
   try {
-    if (validate(req.body)) {
-      const value = await findPlan(req.body.objectId)
-      if (value) {
-        res.setHeader('ETag', value.ETag)
-        const data = { message: 'Item already exists' }
-        conflictHandler(res, data)
-      } else {
-        const newPlan = await addPlan(req.body)
-        const { ETag } = newPlan
-        res.setHeader('ETag', ETag)
-        const data = {
-          message: 'Item added',
-          ETag,
-        }
-        createHandler(res, data)
+    const plan = JSON.stringify(req.body)
+    if (req.body === '{}' || plan === '{}') {
+      throw new BadRequestError(`Invalid plan JSON payload body`)
+    }
+    const valid = validateSchema(req.body)
+    if (!valid) {
+      throw new BadRequestError(`Could not verify JSON payload body`)
+    }
+    const { objectId } = req.body
+    const doesPlanExist = await checkIfPlanExists(objectId)
+    if (doesPlanExist) {
+      const data = { message: `Plan with ID ${objectId} already exists` }
+      conflictHandler(res, data)
+      return
+    }
+    const etag = createETag(objectId)
+    const resObjectId = await savePlanService(objectId, plan, etag)
+    if (!resObjectId !== null) {
+      const data = {
+        message: `Plan with ID ${objectId} added successfully`,
+        ETag: etag,
       }
+      createHandler(res, data, etag)
     } else {
-      throw new BadRequestError(`Item is not valid`)
+      throw new InternalServerError(`InternalServerError`, { error: res })
     }
   } catch (err) {
     next(err)
@@ -98,39 +115,36 @@ const deletePlan = async (req, res, next) => {
   )
   try {
     const { planId } = params
-    if (planId === null || planId === '' || planId === '{}') {
-      throw new BadRequestError(`Invalid planId`)
-    }
-    const value = await findPlan(planId)
-    if (value !== false && value.objectId === planId) {
-      // conditional delete based on `if-match` header
-      const data = {
-        plan: JSON.parse(value.plan),
-      }
-      if (req.headers['if-match']) {
-        // if ETag matches on conditional delete
-        if (value.ETag === req.headers['if-match']) {
-          logger.info(`Item found`, JSON.parse(value.plan))
-          if (deleteByPlanId(planId)) {
-            logger.info(`Item deleted`, JSON.parse(value.plan))
-            noContentHandler(res, data)
-          } else {
-            throw new InternalServerError(`Item not deleted`)
-          }
-        } else {
-          throw new PreConditionFailedError(
-            `ETag provided in header is not valid`
-          )
-        }
-      } else if (deleteByPlanId(planId)) {
-        logger.info(`Item deleted`, JSON.parse(value.plan))
-        noContentHandler(res, data)
-      } else {
-        throw new InternalServerError(`Item not deleted`)
-      }
-    } else {
+    const doesPlanExist = await checkIfPlanExists(planId)
+    if (!doesPlanExist) {
       throw new ResourceNotFoundError(`Plan not found`)
     }
+    const etag = await getPlanETag(planId)
+    let isDeleted = false
+    if (req.headers['if-match'] === undefined) {
+      const data = {
+        message: `Precondition required. Try using "If-Match"`,
+      }
+      preconditionRequiredHandler(res, data)
+      return
+    }
+    if (req.headers['if-match'] !== etag) {
+      const data = {
+        message: `A requested precondition check failed`,
+      }
+      preconditionCheckHandler(res, data)
+      return
+    }
+    if (req.headers['if-match'] === etag) {
+      isDeleted = await deletePlanService(planId)
+    }
+    if (!isDeleted) {
+      throw new InternalServerError(`InternalServerError`, { error: res })
+    }
+    const data = {
+      message: `Plan with ID ${planId} successfully deleted`,
+    }
+    noContentHandler(res, data, etag)
   } catch (err) {
     next(err)
   }

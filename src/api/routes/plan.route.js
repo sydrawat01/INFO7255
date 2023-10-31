@@ -1,5 +1,5 @@
 import express from 'express'
-import { validate } from '../utils/gauth'
+import { auth } from '../middlewares/auth'
 import {
   savePlan,
   getPlan,
@@ -9,11 +9,11 @@ import {
 
 const router = express.Router()
 
-router.route('/plan').post(validate, savePlan)
+router.route('/plan').post(auth, savePlan)
 router
   .route('/plan/:planId')
-  .get(validate, getPlan)
-  .delete(validate, deletePlan)
-  .patch(editPlan)
+  .get(auth, getPlan)
+  .delete(auth, deletePlan)
+  .patch(auth, editPlan)
 
 export { router as planRoute }
