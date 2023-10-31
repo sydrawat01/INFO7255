@@ -20,5 +20,6 @@ module.exports = {
     'max-classes-per-file': 'off',
     'default-param-last': 'off',
     // camelcase: 'off',
+    'dot-notation': 'off',
   },
 }
