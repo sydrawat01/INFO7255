@@ -159,7 +159,67 @@ const editPlan = async (req, res, next) => {
     metaData
   )
   try {
-    // TODO: implement PATCH logic
+    const { planId } = params
+    const doesPlanExist = await checkIfPlanExists(planId)
+    if (!doesPlanExist) {
+      throw new ResourceNotFoundError(`Plan not found`)
+    }
+    let [plan, etag] = await getPlanService(planId)
+    if (req.headers['if-match'] === undefined) {
+      const data = {
+        message: `Precondition required. Try using "If-Match"`,
+      }
+      preconditionRequiredHandler(res, data)
+      return
+    }
+    if (req.headers['if-match'] !== etag) {
+      const data = {
+        message: `A requested precondition check failed`,
+      }
+      preconditionCheckHandler(res, data)
+      return
+    }
+    if (req.headers['if-match'] === etag) {
+      plan = JSON.parse(plan)
+      for (const key in req.body) {
+        if (typeof req.body[key] !== 'string') {
+          if (req.body[key] instanceof Array) {
+            plan = patchList(plan, req.body[key], key)
+            if (plan === 'BadRequest') {
+              throw new BadRequestError(`List objects must contain object ID`, {
+                error: res,
+              })
+            }
+          } else {
+            plan = patchObject(plan, req.body[key], key)
+          }
+        } else {
+          plan[key] = req.body[key]
+        }
+      }
+    }
+    const valid = validateSchema(plan)
+    if (!valid) {
+      throw new BadRequestError(`Could not verify JSON payload body`)
+    }
+    const { objectId } = plan
+    const doesNewPlanExist = await checkIfPlanExists(objectId)
+    if (objectId !== planId && doesNewPlanExist) {
+      const data = { message: `Plan with ID ${objectId} already exists` }
+      conflictHandler(res, data)
+      return
+    }
+    plan = JSON.stringify(plan)
+    etag = createETag(plan)
+    if (planId !== objectId) {
+      await deletePlanService(planId)
+    }
+    const resObjectId = await savePlanService(objectId, plan, etag)
+    if (resObjectId !== null) {
+      successHandler(res, JSON.parse(plan), etag)
+    } else {
+      throw new InternalServerError(`InternalServerError`, { error: res })
+    }
   } catch (err) {
     next(err)
   }
