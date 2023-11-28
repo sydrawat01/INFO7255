@@ -1,3 +1,14 @@
+# [2.0.0](https://github.com/sydrawat01/INFO7255/compare/v1.4.0...v2.0.0) (2023-11-28)
+
+
+* feat!: add elasticsearch, kibana and rabbitmq services ([aff5ffd](https://github.com/sydrawat01/INFO7255/commit/aff5ffd0fc495b0231ded9bdeddc1b61487419ff))
+
+
+### BREAKING CHANGES
+
+* patch functionality has a bug and is not working. This
+will be fixed in future releases.
+
 # [1.4.0](https://github.com/sydrawat01/INFO7255/compare/v1.3.0...v1.4.0) (2023-11-01)
 
 
