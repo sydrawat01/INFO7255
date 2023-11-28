@@ -24,5 +24,11 @@ module.exports = {
     'guard-for-in': 'off',
     'no-await-in-loop': 'off',
     'no-param-reassign': 'off',
+    'no-return-await': 'off',
+    'no-use-before-define': 'warn',
+    'prefer-const': 'off',
+    'new-cap': 'warn',
+    'no-extra-boolean-cast': 'off',
+    'no-restricted-globals': 'warn',
   },
 }

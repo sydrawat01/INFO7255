@@ -11,7 +11,7 @@ const router = express.Router()
 
 router.route('/plan').post(auth, savePlan)
 router
-  .route('/plan/:planId')
+  .route('/plan/:objectId')
   .get(auth, getPlan)
   .delete(auth, deletePlan)
   .patch(auth, editPlan)
