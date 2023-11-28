@@ -1,14 +1,15 @@
+import { producer } from '../services/rabbitmq.service'
+import { ifKeyExists, getETag } from '../services/redis.service'
+import { isValidJSONSchema } from '../services/schema.service'
+import appConfig from '../../configs/app.config'
+import logger from '../../configs/logger.config'
+import { PLAN_SCHEMA } from '../models/plan.model'
 import {
-  createETag,
-  checkIfPlanExists,
-  getPlanETag,
-  getPlanService,
-  savePlanService,
-  deletePlanService,
-  patchObject,
-  patchList,
-} from '../services/redis.service'
-import { validateSchema } from '../utils/schemaValidation'
+  createSavePlan,
+  getSavedPlan,
+  deleteSavedPlan,
+  generateETag,
+} from '../services/plan.service'
 import {
   BadRequestError,
   InternalServerError,
@@ -21,7 +22,6 @@ import {
   preconditionCheckHandler,
   preconditionRequiredHandler,
 } from '../utils/error.util'
-import logger from '../../configs/logger.config'
 
 const getPlan = async (req, res, next) => {
   const { protocol, method, hostname, originalUrl, params } = req
@@ -32,32 +32,42 @@ const getPlan = async (req, res, next) => {
     metaData
   )
   try {
-    const { planId } = params
-    if (planId === null || planId === '' || planId === '{}') {
-      throw new BadRequestError(`Invalid planId`)
+    const { objectId } = params
+    if (objectId === null || objectId === '' || objectId === '{}') {
+      throw new BadRequestError(`Invalid objectId`)
     }
-    const doesPlanExist = await checkIfPlanExists(planId)
-    if (!doesPlanExist) {
+
+    // Key format: <type>_<objectId>
+    const KEY = `${appConfig.PLAN_TYPE}_${objectId}`
+
+    // Check if KEY is present in the Redis datastore
+    const isKeyValid = await ifKeyExists(KEY)
+    logger.info(`Key found:`, { KEY })
+
+    // Check for valid objectId
+    if (!isKeyValid) {
+      logger.error(`Key ${KEY} is not valid`, { KEY })
       throw new ResourceNotFoundError(`Plan not found`)
     }
-    const [plan, etag] = await getPlanService(planId)
-    if (!plan) {
-      throw new ResourceNotFoundError(`Plan not found`)
-    }
-    if (
-      req.headers['if-none-match'] !== undefined &&
-      req.headers['if-none-match'] === etag
-    ) {
+
+    const etag = await getETag(KEY)
+
+    const urlETag = req.headers['If-None-Match']
+    if (!!urlETag && urlETag.equals(etag)) {
+      logger.info(`ETAG present`, { etag })
       const data = {
         message: 'Plan has not changed',
-        plan: JSON.parse(plan),
       }
       notModifiedHandler(res, data, etag)
       return
     }
+
+    // Save data to Redis datastore
+    logger.info(`Getting latest plan from Redis datastore`, { KEY })
+    const plan = await getSavedPlan(KEY)
+    logger.info(`Latest plan from Redis`, { KEY, plan })
     const data = {
-      message: 'Plan has changed',
-      plan: JSON.parse(plan),
+      plan,
     }
     successHandler(res, data, etag)
   } catch (err) {
@@ -74,32 +84,51 @@ const savePlan = async (req, res, next) => {
     metaData
   )
   try {
-    const plan = JSON.stringify(req.body)
-    if (req.body === '{}' || plan === '{}') {
-      throw new BadRequestError(`Invalid plan JSON payload body`)
+    const planJSON = req.body
+    if (!!!planJSON) {
+      logger.error(`Invalid plan payload body`)
+      throw new BadRequestError(`Invalid plan payload body`)
     }
-    const valid = validateSchema(req.body)
-    if (!valid) {
+    logger.info(`Validating JSON payload data`, { payload: planJSON })
+    const isValidSchema = await isValidJSONSchema(planJSON, PLAN_SCHEMA)
+    if (isValidSchema?.error) {
+      logger.error(`Invalid JSON for payload body`, {
+        error: 'INVALID_SCHEMA',
+        ...isValidSchema?.data,
+      })
       throw new BadRequestError(`Could not verify JSON payload body`)
     }
-    const { objectId } = req.body
-    const doesPlanExist = await checkIfPlanExists(objectId)
-    if (doesPlanExist) {
-      const data = { message: `Plan with ID ${objectId} already exists` }
+
+    // Valid JSON payload body
+    logger.info(`Valid JSON payload body`, { payload: planJSON })
+
+    // Key format: <type>_<objectId>
+    const KEY = `${appConfig.PLAN_TYPE}_${planJSON.objectId}`
+
+    logger.info(`Checking for KEY validation`, { KEY })
+    const isKeyValid = await ifKeyExists(KEY)
+    if (isKeyValid) {
+      const data = {
+        message: `Plan with ID ${planJSON.objectId} already exists`,
+      }
       conflictHandler(res, data)
       return
     }
-    const etag = createETag(objectId)
-    const resObjectId = await savePlanService(objectId, plan, etag)
-    if (!resObjectId !== null) {
-      const data = {
-        message: `Plan with ID ${objectId} added successfully`,
-        ETag: etag,
-      }
-      createHandler(res, data, etag)
-    } else {
-      throw new InternalServerError(`InternalServerError`, { error: res })
+    // Create and save the plan to Redis datastore
+    await createSavePlan(KEY, planJSON)
+    const etag = generateETag(KEY, planJSON)
+    // Send the message to queue for indexing
+    logger.info(`Sending message to RabbitMQ queue`)
+    const message = {
+      operation: 'STORE',
+      body: planJSON,
     }
+    producer(message)
+    logger.info(`Plan added successfully`, { objectId: planJSON.objectId })
+    const data = {
+      message: `Plan with ID ${planJSON.objectId} added successfully`,
+    }
+    createHandler(res, data, etag)
   } catch (err) {
     next(err)
   }
@@ -114,13 +143,21 @@ const deletePlan = async (req, res, next) => {
     metaData
   )
   try {
-    const { planId } = params
-    const doesPlanExist = await checkIfPlanExists(planId)
-    if (!doesPlanExist) {
+    const { objectId } = params
+
+    // Key format: <type>_<objectId>
+    const KEY = `${appConfig.PLAN_TYPE}_${objectId}`
+
+    logger.info(`Checking for KEY validation`, { KEY })
+    const isKeyValid = await ifKeyExists(KEY)
+
+    if (!isKeyValid) {
+      logger.error(`Key ${KEY} is not valid`, { KEY })
       throw new ResourceNotFoundError(`Plan not found`)
     }
-    const etag = await getPlanETag(planId)
-    let isDeleted = false
+
+    // Delete the plan
+    const etag = await getETag(KEY)
     if (req.headers['if-match'] === undefined) {
       const data = {
         message: `Precondition required. Try using "If-Match"`,
@@ -136,15 +173,26 @@ const deletePlan = async (req, res, next) => {
       return
     }
     if (req.headers['if-match'] === etag) {
-      isDeleted = await deletePlanService(planId)
+      const oldPlan = await getSavedPlan(KEY)
+      logger.info(`Sending message to RabbitMQ queue`)
+      const message = {
+        operation: 'DELETE',
+        body: oldPlan,
+      }
+      producer(message)
+
+      logger.info(`Deleting plan`, { KEY })
+      await deleteSavedPlan(KEY)
+      const data = {
+        message: `Plan with ID ${objectId} successfully deleted`,
+      }
+      noContentHandler(res, data, etag)
+    } else {
+      throw new InternalServerError(
+        `InternalServerError deleting plan ${KEY}`,
+        { error: res }
+      )
     }
-    if (!isDeleted) {
-      throw new InternalServerError(`InternalServerError`, { error: res })
-    }
-    const data = {
-      message: `Plan with ID ${planId} successfully deleted`,
-    }
-    noContentHandler(res, data, etag)
   } catch (err) {
     next(err)
   }
@@ -159,12 +207,37 @@ const editPlan = async (req, res, next) => {
     metaData
   )
   try {
-    const { planId } = params
-    const doesPlanExist = await checkIfPlanExists(planId)
-    if (!doesPlanExist) {
+    const { objectId } = params
+    const planJSON = req.body
+
+    // Key format: <type>_<objectId>
+    const KEY = `${appConfig.PLAN_TYPE}_${objectId}`
+
+    logger.info(`Checking for KEY validation`, { KEY })
+    const isKeyValid = await ifKeyExists(KEY)
+
+    if (!isKeyValid) {
+      logger.error(`Key ${KEY} is not valid`, { KEY })
       throw new ResourceNotFoundError(`Plan not found`)
     }
-    let [plan, etag] = await getPlanService(planId)
+
+    // Invalid JSON payload data
+    if (!planJSON) {
+      logger.error(`Invalid plan payload body`)
+      throw new BadRequestError(`Invalid plan payload body`)
+    }
+    logger.info(`Validating JSON payload data`, { payload: planJSON })
+    const isValidSchema = await isValidJSONSchema(planJSON, PLAN_SCHEMA)
+    if (isValidSchema?.error) {
+      logger.error(`Invalid JSON for payload body`, {
+        error: 'INVALID_SCHEMA',
+        ...isValidSchema?.data,
+      })
+      throw new BadRequestError(`Could not verify JSON payload body`)
+    }
+
+    const etag = await getETag(KEY)
+
     if (req.headers['if-match'] === undefined) {
       const data = {
         message: `Precondition required. Try using "If-Match"`,
@@ -180,47 +253,40 @@ const editPlan = async (req, res, next) => {
       return
     }
     if (req.headers['if-match'] === etag) {
-      plan = JSON.parse(plan)
-      for (const key in req.body) {
-        if (typeof req.body[key] !== 'string') {
-          if (req.body[key] instanceof Array) {
-            plan = patchList(plan, req.body[key], key)
-            if (plan === 'BadRequest') {
-              throw new BadRequestError(`List objects must contain object ID`, {
-                error: res,
-              })
-            }
-          } else {
-            plan = patchObject(plan, req.body[key], key)
-          }
-        } else {
-          plan[key] = req.body[key]
-        }
+      // Create new ETAG and save data to Redis datastore
+      logger.info(`etag match successful`, { oldETag: etag })
+      const newETag = generateETag(KEY, planJSON)
+      logger.info(`Created new ETAG`, { newETag })
+
+      // TODO: Fix patch
+      await createSavePlan(KEY, planJSON)
+
+      logger.info(`Plan saved/updated successfully`, {
+        etag: newETag,
+        plan: planJSON,
+      })
+
+      // Send message to RabbitMQ queue for indexing
+      const plan = await getSavedPlan(KEY)
+      const message = {
+        operation: 'STORE',
+        body: plan,
       }
-    }
-    const valid = validateSchema(plan)
-    if (!valid) {
-      throw new BadRequestError(`Could not verify JSON payload body`)
-    }
-    const { objectId } = plan
-    const doesNewPlanExist = await checkIfPlanExists(objectId)
-    if (objectId !== planId && doesNewPlanExist) {
-      const data = { message: `Plan with ID ${objectId} already exists` }
-      conflictHandler(res, data)
-      return
-    }
-    plan = JSON.stringify(plan)
-    etag = createETag(plan)
-    if (planId !== objectId) {
-      await deletePlanService(planId)
-    }
-    const resObjectId = await savePlanService(objectId, plan, etag)
-    if (resObjectId !== null) {
-      successHandler(res, JSON.parse(plan), etag)
+      producer(message)
+
+      logger.info(`Patched plan from Redis`, { KEY, plan })
+      const data = {
+        plan: JSON.parse(plan),
+      }
+      successHandler(res, data, newETag)
     } else {
-      throw new InternalServerError(`InternalServerError`, { error: res })
+      throw new InternalServerError(
+        `InternalServerError patching plan ${KEY}`,
+        { error: res }
+      )
     }
   } catch (err) {
+    logger.error(`Error`, { err })
     next(err)
   }
 }

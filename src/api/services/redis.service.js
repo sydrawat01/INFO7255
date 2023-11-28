@@ -1,6 +1,5 @@
 import 'dotenv/config'
 import { createClient } from 'redis'
-import crypto from 'crypto'
 import appConfig from '../../configs/app.config'
 import logger from '../../configs/logger.config'
 
@@ -8,9 +7,11 @@ const { REDIS_HOST, REDIS_PORT } = appConfig
 
 const client = createClient(REDIS_PORT, REDIS_HOST)
 
+// Redis CONNECT event listener
 client.on('connect', () => {
   logger.info('Connected to redis', { REDIS_HOST, REDIS_PORT })
 })
+// Redis ERROR event listener
 client.on('error', (error) => {
   logger.error(`redis client error`, { error })
 })
@@ -18,127 +19,51 @@ client.on('error', (error) => {
 // Connect to the Redis datastore client
 client.connect()
 
-const createETag = (plan) => {
-  try {
-    const hash = crypto.createHash('sha256').update(plan).digest('base64')
-    return hash
-  } catch (err) {
-    logger.error(`Error creating the hash`, { error: err })
-  }
+const ifKeyExists = async (key) => {
+  const data = await client.exists(key)
+  return !!data
 }
 
-const checkIfPlanExists = async (objectId) => {
-  try {
-    const exists = await client.exists(objectId)
-    if (!exists) return false
-    return true
-  } catch (err) {
-    logger.error(`Redis Client Error`, { error: err })
-  }
+const getETag = async (key) => {
+  return await client.hGet(key, 'eTag')
 }
 
-const getPlanETag = async (objectId) => {
-  try {
-    const exists = await checkIfPlanExists(`${objectId}_etag`)
-    if (!exists) return false
-    const etag = await client.get(`${objectId}_etag`)
-    return etag
-  } catch (err) {
-    logger.error(`Redis Client error`, { error: err })
-  }
+const setETag = async (key, eTag) => {
+  return await client.hSet(key, 'eTag', eTag)
 }
 
-const getPlanService = async (objectId) => {
-  try {
-    const exists = await checkIfPlanExists(objectId)
-    if (!exists) return false
-    const plan = await client.get(objectId)
-    const etag = await client.get(`${objectId}_etag`)
-    return [plan, etag]
-  } catch (err) {
-    logger.error(`Redis Client error`, { error: err })
-  }
+const addSetValue = async (key, value) => {
+  return await client.sAdd(key, value)
 }
 
-const deletePlanService = async (objectId) => {
-  try {
-    const exists = await checkIfPlanExists(objectId)
-    if (!exists) return false
-    const deleted = await client.del(objectId)
-    const deletedETag = await client.del(`${objectId}_etag`)
-    return deleted && deletedETag
-  } catch (err) {
-    logger.error(`Redis Client error`, { error: err })
-  }
+const hSet = async (key, field, value) => {
+  return await client.hSet(key, field, value)
 }
 
-const savePlanService = async (objectId, plan, etag) => {
-  try {
-    await client.set(objectId, plan)
-    await client.set(`${objectId}_etag`, etag)
-    return objectId
-  } catch (err) {
-    logger.error(`Redis Client error`, { error: err })
-  }
+const getKeys = async (pattern) => {
+  return await client.keys(pattern)
 }
 
-const patchObject = (mainObject, reqBody, k) => {
-  try {
-    for (const key in reqBody) {
-      mainObject[k][key] = reqBody[key]
-    }
-    return mainObject
-  } catch (err) {
-    logger.error(`Redis Client error`, { error: err })
-  }
+const deleteKeys = async (keys) => {
+  return await client.del(keys)
 }
 
-const patchList = (mainObject, reqBody, k) => {
-  try {
-    const hMap = new Map()
-    for (let i = 0; i < reqBody.length; i += 1) {
-      if (reqBody[i]['objectId'] === undefined) {
-        return 'BadRequest'
-      }
-      hMap.set(reqBody[i]['objectId'], reqBody[i])
-    }
-    for (let i = 0; i < mainObject[k].length; i += 1) {
-      if (hMap.has(mainObject[k][i]['objectId'])) {
-        const tempObj = hMap.get(mainObject[k][i]['objectId'])
-        hMap.delete(mainObject[k][i]['objectid'])
-        for (const key in tempObj) {
-          if (typeof tempObj[key] !== 'string') {
-            if (tempObj[key] instanceof Array) {
-              mainObject[k][i] = patchList(mainObject[k][i], tempObj[key], key)
-            } else {
-              mainObject[k][i] = patchObject(
-                mainObject[k][i],
-                tempObj[key],
-                key
-              )
-            }
-          } else {
-            mainObject[k][i][key] = tempObj[key]
-          }
-        }
-      }
-    }
-    for (const [key, value] of hMap) {
-      mainObject[k].push(value)
-    }
-    return mainObject
-  } catch (err) {
-    logger.error(`Redis Client error`, { error: err })
-  }
+const getAllValuesByKey = async (key) => {
+  return await client.hGetAll(key)
 }
+
+const sMembers = async (key) => {
+  return await client.sMembers(key)
+}
+
 export {
-  createETag,
-  checkIfPlanExists,
-  getPlanETag,
-  getPlanService,
-  savePlanService,
-  deletePlanService,
-  patchObject,
-  patchList,
-  client,
+  ifKeyExists,
+  getETag,
+  setETag,
+  addSetValue,
+  hSet,
+  getKeys,
+  deleteKeys,
+  getAllValuesByKey,
+  sMembers,
 }
