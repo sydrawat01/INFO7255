@@ -27,6 +27,10 @@ jobs:
           echo HOSTNAME=${{ vars.HOSTNAME }} >> .env
           echo PORT=${{ vars.PORT }} >> .env
           echo DATABASE=${{ vars.REDIS_PORT }} >> .env
+          echo CLIENT_ID=$${{ secrets.CLIENT_ID }} >> .env
+          echo ELASTIC_PASSWORD =${{ secrets.ELASTIC_PASSWORD }} > .env
+          echo CERT_PATH=${{ secrets.CERT_PATH }} > .env
+          echo ELASTIC_BASE_URL=${{ vars.ELASTIC_BASE_URL }} > .env
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
