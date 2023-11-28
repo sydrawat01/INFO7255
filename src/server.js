@@ -6,5 +6,5 @@ import logger from './configs/logger.config'
 const { HOSTNAME, PORT } = appConfig
 
 app.listen(PORT, () => {
-  logger.info(`Server running @ http://${HOSTNAME}:${PORT}`)
+  logger.info(`Server running @ http://${HOSTNAME}:${PORT}`, { HOSTNAME, PORT })
 })

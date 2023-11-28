@@ -4,16 +4,19 @@ import crypto from 'crypto'
 import appConfig from '../../configs/app.config'
 import logger from '../../configs/logger.config'
 
-const { REDIS_PORT } = appConfig
+const { REDIS_HOST, REDIS_PORT } = appConfig
 
-const client = createClient(REDIS_PORT)
-client.connect()
-client.on('error', (err) => {
-  logger.error(`redis client error`, err)
-})
+const client = createClient(REDIS_PORT, REDIS_HOST)
+
 client.on('connect', () => {
-  logger.info('Connected to redis')
+  logger.info('Connected to redis', { REDIS_HOST, REDIS_PORT })
 })
+client.on('error', (error) => {
+  logger.error(`redis client error`, { error })
+})
+
+// Connect to the Redis datastore client
+client.connect()
 
 const createETag = (plan) => {
   try {
@@ -137,4 +140,5 @@ export {
   deletePlanService,
   patchObject,
   patchList,
+  client,
 }

@@ -7,7 +7,7 @@ import {
   deletePlanService,
   patchObject,
   patchList,
-} from '../services/redis.client'
+} from '../services/redis.service'
 import { validateSchema } from '../utils/schemaValidation'
 import {
   BadRequestError,
