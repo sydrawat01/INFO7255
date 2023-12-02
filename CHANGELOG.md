@@ -1,3 +1,10 @@
+## [2.0.2](https://github.com/sydrawat01/INFO7255/compare/v2.0.1...v2.0.2) (2023-12-2)
+
+
+### Bug Fixes
+
+* add has_parent elastic query ([3386d25](https://github.com/sydrawat01/INFO7255/commit/3386d253f2e84d7371e9214c5eb9ad27437416cf))
+
 ## [2.0.1](https://github.com/sydrawat01/INFO7255/compare/v2.0.0...v2.0.1) (2023-12-2)
 
 
