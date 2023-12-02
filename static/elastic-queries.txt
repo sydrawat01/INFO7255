@@ -205,7 +205,7 @@ GET /demo-3/_search
   }
 }
 
-# PARENT CHILD RELATION
+# PARENT CHILD RELATION: has_child
 GET /demo-3/_search
 {
   "query": {
@@ -216,6 +216,27 @@ GET /demo-3/_search
           "copay": {
             "gte": 1
           }
+        }
+      }
+    }
+  }
+}
+
+# PARENT CHILD RELATION: has_parent
+GET /demo-3/_search
+{
+  "query": {
+    "has_parent": {
+      "parent_type": "linkedPlanServices",
+      "query": {
+        "bool": {
+          "must": [
+            {
+              "match": {
+                "objectId": "27283xvx9asdff-504"
+              }
+            }
+          ]
         }
       }
     }
@@ -316,7 +337,7 @@ GET /demo-3/_search
   }
 }
 
-# FAILED QUERY
+# FAILED QUERY: has_parent
 GET /demo-3/_search
 {
   "query": {
