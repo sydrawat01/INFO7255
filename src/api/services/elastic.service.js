@@ -132,10 +132,12 @@ const postDocument = async (plan) => {
 const deleteDocument = async (jsonObject) => {
   listOfKeys = []
   await convertToKeys(jsonObject)
+  logger.info(`List of KEYS:`, { listOfKeys })
   for (const key of listOfKeys) {
-    elasticClient.indices.delete(
+    elasticClient.delete(
       {
         index: ELASTICSEARCH_INDEX_NAME,
+        id: key,
       },
       (err, res) => {
         if (err) {

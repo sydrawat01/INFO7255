@@ -24,7 +24,7 @@ services:
       - '5601:5601'
   rabbitmq3:
     container_name: rabbitmq
-    image: 'rabbitmq:3.12-management'
+    image: 'rabbitmq:3.8-management'
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest

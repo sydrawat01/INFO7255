@@ -1,0 +1,140 @@
+#get information of each index in the cluster
+GET _cat/indices
+
+#see mapping of an index
+GET /demo-3/_mapping
+
+#search for full list of objects
+GET /demo-3/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+#search for an object equal to specific id
+GET /demo-3/_search
+{
+  "query": {
+    "match": {
+      "_id": "12xvxc345ssdsds-508"
+    }
+  }
+}
+
+# PARENT CHILD RELATION
+GET /demo-3/_search
+{
+  "query": {
+    "has_child": {
+      "type": "planserviceCostShares",
+      "query": {
+        "range": {
+          "copay": {
+            "gte": 1
+          }
+        }
+      }
+    }
+  }
+}
+
+# WILDCARD TEXT SEARCH 1: search text
+GET /demo-3/_search
+{
+  "query": {
+    "wildcard": {
+      "_org": {
+        "value": "example*"
+      }
+    }
+  }
+}
+
+# WILDCARD TEXT SEARCH 2: search text
+GET /demo-3/_search
+{
+  "query": {
+    "wildcard": {
+      "name": {
+        "value": "well*"
+      }
+    }
+  }
+}
+
+# CONDITIONAL SEARCH 1: match copay and deductible
+GET /demo-3/_search
+{
+  "query": {
+    "bool": {
+      "must": {
+        "bool": {
+          "must": [
+            {
+              "match": {
+                "copay": 175
+              }
+            },
+            {
+              "match": {
+                "deductible": 10
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
+# CONDITIONAL SEARCH 2: match copay and deductible
+GET /demo-3/_search
+{
+  "query": {
+    "bool": {
+      "must": {
+        "bool": {
+          "must": [
+            {
+              "match": {
+                "copay": 0
+              }
+            },
+            {
+              "match": {
+                "deductible": 10
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
+# SEARCH STRING: query for name matching
+GET /demo-3/_search
+{
+  "query": {
+    "bool": {
+      "must": {
+        "bool": {
+          "must": [
+            {
+              "match": {
+                "name": "well baby"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
+#delete cache index
+DELETE /demo-3
+
+#get information of each index in the cluster
+GET _cat/indices

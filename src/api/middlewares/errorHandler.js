@@ -7,7 +7,7 @@ export const errorHandler = (err, req, res, next) => {
     error: err.name,
     message: errMessage,
     data: err.data,
-    stack: err.stack,
+    // stack: err.stack,
   }
   res.status(errStatus).json(meta)
   logger.error(errMessage, meta)

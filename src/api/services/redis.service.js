@@ -28,6 +28,10 @@ const getETag = async (key) => {
   return await client.hGet(key, 'eTag')
 }
 
+const getKeyType = async (key) => {
+  return await client.type(key)
+}
+
 const setETag = async (key, eTag) => {
   return await client.hSet(key, 'eTag', eTag)
 }
@@ -59,6 +63,7 @@ const sMembers = async (key) => {
 export {
   ifKeyExists,
   getETag,
+  getKeyType,
   setETag,
   addSetValue,
   hSet,
