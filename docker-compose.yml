@@ -2,7 +2,7 @@ version: '3.0'
 services:
   elasticsearch:
     container_name: elastic-container
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.14
     restart: always
     environment:
       - xpack.security.enabled=false
@@ -13,7 +13,7 @@ services:
       - '9200:9200'
   kibana:
     container_name: kibana-container
-    image: 'docker.elastic.co/kibana/kibana:7.12.0'
+    image: 'docker.elastic.co/kibana/kibana:7.17.14'
     environment:
       - 'ELASTICSEARCH_HOSTS=http://elastic-container:9200'
     networks:
