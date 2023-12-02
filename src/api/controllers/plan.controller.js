@@ -158,7 +158,10 @@ const deletePlan = async (req, res, next) => {
 
     // Delete the plan
     const etag = await getETag(KEY)
-    if (req.headers['if-match'] === undefined) {
+    if (
+      req.headers['if-match'] === undefined ||
+      req.headers['if-match'] === '[]'
+    ) {
       const data = {
         message: `Precondition required. Try using "If-Match"`,
       }
@@ -238,7 +241,10 @@ const editPlan = async (req, res, next) => {
 
     const etag = await getETag(KEY)
 
-    if (req.headers['if-match'] === undefined) {
+    if (
+      req.headers['if-match'] === undefined ||
+      req.headers['if-match'] === '[]'
+    ) {
       const data = {
         message: `Precondition required. Try using "If-Match"`,
       }
@@ -276,7 +282,7 @@ const editPlan = async (req, res, next) => {
 
       logger.info(`Patched plan from Redis`, { KEY, plan })
       const data = {
-        plan: JSON.parse(plan),
+        plan,
       }
       successHandler(res, data, newETag)
     } else {

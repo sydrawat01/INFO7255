@@ -5,7 +5,7 @@ export const PLAN_SCHEMA = {
   type: 'object',
   title: 'The Plan Schema',
   required: [
-    // 'planCostShares',
+    'planCostShares',
     'linkedPlanServices',
     '_org',
     'objectId',
