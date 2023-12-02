@@ -1,3 +1,12 @@
+## [2.0.1](https://github.com/sydrawat01/INFO7255/compare/v2.0.0...v2.0.1) (2023-12-2)
+
+
+### Bug Fixes
+
+* patch method errors fixed ([fd1205a](https://github.com/sydrawat01/INFO7255/commit/fd1205afeb0cb42739d1c529de45201131f4249d))
+* update rabbitmq to alpine docker image ([028cd45](https://github.com/sydrawat01/INFO7255/commit/028cd4557c9bcf2f38c9ec64d59a9805ccb310fb))
+* upgrade elastic and kibana containers, elastic queries ([ac451c3](https://github.com/sydrawat01/INFO7255/commit/ac451c31106f77039bcb95a5c38d269c532e97fe))
+
 # [2.0.0](https://github.com/sydrawat01/INFO7255/compare/v1.4.0...v2.0.0) (2023-11-28)
 
 
