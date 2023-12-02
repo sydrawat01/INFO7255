@@ -1,8 +1,191 @@
 #get information of each index in the cluster
 GET _cat/indices
 
+#delete index
+DELETE /demo-3
+
+#clear cache of an index
+POST /demo-3/_cache/clear
+
 #see mapping of an index
 GET /demo-3/_mapping
+
+
+#create index and mapping
+PUT /demo-3
+{
+  "settings": {
+    "index": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1
+    }
+  },
+  "mappings": {
+    "properties": {
+      "_org": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "copay": {
+        "type": "integer"
+      },
+      "creationDate": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "deductible": {
+        "type": "integer"
+      },
+      "linkedPlanServices": {
+        "properties": {
+          "_org": {
+            "type": "text"
+          },
+          "objectId": {
+            "type": "keyword"
+          },
+          "objectType": {
+            "type": "text"
+          }
+        }
+      },
+      "linkedService": {
+        "properties": {
+          "_org": {
+            "type": "text"
+          },
+          "name": {
+            "type": "text"
+          },
+          "objectId": {
+            "type": "keyword"
+          },
+          "objectType": {
+            "type": "text"
+          }
+        }
+      },
+      "name": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "objectId": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "objectType": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "plan": {
+        "properties": {
+          "_org": {
+            "type": "text"
+          },
+          "creationDate": {
+            "type": "date",
+            "format": "MM-dd-yyyy"
+          },
+          "objectId": {
+            "type": "keyword"
+          },
+          "objectType": {
+            "type": "text"
+          },
+          "planType": {
+            "type": "text"
+          }
+        }
+      },
+      "planCostShares": {
+        "properties": {
+          "_org": {
+            "type": "text"
+          },
+          "copay": {
+            "type": "integer"
+          },
+          "deductible": {
+            "type": "integer"
+          },
+          "objectId": {
+            "type": "keyword"
+          },
+          "objectType": {
+            "type": "text"
+          }
+        }
+      },
+      "planType": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "plan_join": {
+        "type": "join",
+        "eager_global_ordinals": true,
+        "relations": {
+          "linkedPlanServices": [
+            "linkedService",
+            "planserviceCostShares"
+          ],
+          "plan": [
+            "planCostShares",
+            "linkedPlanServices"
+          ]
+        }
+      },
+      "planserviceCostShares": {
+        "properties": {
+          "_org": {
+            "type": "text"
+          },
+          "copay": {
+            "type": "integer"
+          },
+          "deductible": {
+            "type": "integer"
+          },
+          "objectId": {
+            "type": "keyword"
+          },
+          "objectType": {
+            "type": "text"
+          }
+        }
+      }
+    }
+  }
+}
 
 #search for full list of objects
 GET /demo-3/_search
@@ -132,6 +315,27 @@ GET /demo-3/_search
     }
   }
 }
+
+# FAILED QUERY
+GET /demo-3/_search
+{
+  "query": {
+    "has_parent": {
+      "parent_type": "linkedPlanServicess",
+      "query": {
+        "bool": {
+          "must": [
+            {
+              "match": {
+                "objectId": "27283xvx9asdff-512"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+  }
 
 #delete cache index
 DELETE /demo-3
